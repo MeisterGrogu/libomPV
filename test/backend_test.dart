@@ -1,4 +1,4 @@
-import "../backend/fetcher.dart";
+import 'package:libom_pv/backend/fetcher.dart';
 
 void main() async {
   Vertretungsplan vp = Vertretungsplan(
