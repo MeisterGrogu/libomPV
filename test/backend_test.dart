@@ -7,12 +7,10 @@ void main() async {
     passwort: "AEG_2526_S",
   );
 
-  var tag = await vp.fetch(datum: DateTime(2026, 2, 3));
+  var tag = await vp.fetch(datum: DateTime.now());
   var klasse = tag.klasse("9d");
 
   klasse.stunden().forEach((stunde) {
-    if (! stunde.ausfall) {
-        print("${stunde.nr} | ${stunde.fach} bei ${stunde.lehrer} in ${stunde.raum}");
-    }
+    print("${stunde.nr} | ${!stunde.ausfall ? stunde.fach : "Ausfall"} bei ${!stunde.ausfall ? stunde.lehrer : "niemandem"} in ${!stunde.ausfall ? stunde.raum : "keinem Raum"}");
   });
 }
