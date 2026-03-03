@@ -63,7 +63,19 @@ class _TimetablePageState extends State<TimetablePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: 
+          TextButton(
+            onPressed: (){
+            }, 
+            child: Text('Plan')),
         title: const Text('Timetable'),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: (){
+            }, 
+            child: Text('Einstellung'))
+          ],
       ),
       body: FutureBuilder<List<VpDay>>(
         future: _fetchWeek(),
