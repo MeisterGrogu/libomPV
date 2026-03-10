@@ -93,6 +93,31 @@ class _TimetablePageState extends State<TimetablePage> {
     );
   }
 
+  void planMenu(){
+    print("pkan");
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Pläne"),
+          content: Column(
+            children: [
+              const Text('Plan')
+            ],
+          ),
+          actions: [
+            MaterialButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<List<VpDay>> _fetchWeek() async {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
@@ -110,8 +135,7 @@ class _TimetablePageState extends State<TimetablePage> {
       appBar: AppBar(
         leading: 
           TextButton(
-            onPressed: (){
-            }, 
+            onPressed: planMenu, 
             child: Text('Plan')),
         title: const Text('Timetable'),
         centerTitle: true,
