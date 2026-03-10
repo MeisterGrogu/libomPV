@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData.from(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const TimetablePage(),
+      home: TimetablePage(),
     );
   }
 }
@@ -48,6 +48,51 @@ class _TimetablePageState extends State<TimetablePage> {
     );
   }
 
+  void settingsMenu(){
+    print("object");
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Einstellung"),
+          content: Column(
+            children: [
+              const Text('Schulnummer'),
+              TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Gebe die Schulnummer ein.',
+                ),
+              ),
+              const Text('Benutzername'),
+              TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Gebe den Benutzernamen ein.',
+                ),
+              ),
+              const Text('Passwort'),
+              TextField(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Gebe das Passwort ein.',
+                )
+              ),
+            ],
+          ),
+          actions: [
+            MaterialButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<List<VpDay>> _fetchWeek() async {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
@@ -72,8 +117,7 @@ class _TimetablePageState extends State<TimetablePage> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: (){
-            }, 
+            onPressed: settingsMenu, 
             child: Text('Einstellung'))
           ],
       ),
