@@ -133,15 +133,15 @@ class _TimetablePageState extends State<TimetablePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: 
+        leading:
           TextButton(
-            onPressed: planMenu, 
+            onPressed: planMenu,
             child: Text('Plan')),
         title: const Text('Timetable'),
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: settingsMenu, 
+            onPressed: settingsMenu,
             child: Text('Einstellung'))
           ],
       ),
@@ -157,32 +157,84 @@ class _TimetablePageState extends State<TimetablePage> {
           }
 
           final week = snapshot.data!;
-          return ListView(
-            children: week.map((vpday) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: week.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // ⬅️ days per row (use 3 on tablets if you want)
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.75,
+            ),
+            itemBuilder: (context, index) {
+              final vpday = week[index];
+              final dateFormatted =
+              DateFormat('EEEE\ndd.MM.yyyy').format(vpday.datum);
+
               try {
                 final kl = vpday.klasse(klasseKuerzel);
                 final stunden = kl.stunden();
-                final dateFormatted = DateFormat('EEEE, dd.MM.yyyy').format(vpday.datum); // Format the date
-                return ExpansionTile(
-                  title: Text(dateFormatted),
-                  children: stunden.map((s) {
-                    final title = s.ausfall ? 'Ausfall' : (s.fach.isNotEmpty ? s.fach : '—');
-                    final subtitle = s.ausfall
-                        ? 'Kein Unterricht'
-                        : '${s.lehrer.isNotEmpty ? s.lehrer : 'unbekannt'} • ${s.raum.isNotEmpty ? s.raum : 'kein Raum'}';
-                    return ListTile(
-                      leading: CircleAvatar(child: Text(s.nr.toString())),
-                      title: Text(title),
-                      subtitle: Text(subtitle),
-                      trailing: Text('${s.beginn}–${s.ende}'),
-                    );
-                  }).toList(),
+
+                return Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateFormatted,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Divider(),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: stunden.length,
+                            itemBuilder: (context, i) {
+                              final s = stunden[i];
+                              final title = s.ausfall
+                                  ? 'Ausfall'
+                                  : (s.fach.isNotEmpty ? s.fach : '—');
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 12,
+                                      child: Text(s.nr.toString()),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               } catch (e) {
-                final dateFormatted = DateFormat('EEEE, dd.MM.yyyy').format(vpday.datum);
-                return ListTile(title: Text('Klasse $klasseKuerzel not found for $dateFormatted'));
+                return Card(
+                  child: Center(
+                    child: Text(
+                      'Keine Daten\n$dateFormatted',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
               }
-            }).toList(),
+            },
           );
         },
       ),
