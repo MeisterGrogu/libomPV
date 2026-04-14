@@ -62,8 +62,8 @@ class VpDay {
     datei = _mobdaten.findAllElements('Kopf').first
         .findElements('datei').first.innerText;
 
-    // Parse datum from datei string (characters 6-14)
-    datum = _parseDate(datei.substring(6, 14), '%Y%m%d');
+    // Parse datum from datei string (characters 8-16)
+    datum = _parseDate(datei.substring(8, 16), '%Y%m%d');
 
     // Get weekday (0 = Monday in Dart, 1 = Monday in Python)
     // Dart's DateTime.weekday: 1 = Monday, 7 = Sunday

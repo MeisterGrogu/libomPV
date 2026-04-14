@@ -31,12 +31,25 @@ class TimetablePage extends StatefulWidget {
 
 class _TimetablePageState extends State<TimetablePage> {
   // Example/default credentials (taken from backend_test.dart)
-  final int schulnummer = 40102573;
-  final String benutzername = "schueler";
-  final String passwort = "AEG_2526_S";
-  final String klasseKuerzel = "9d";
+  
+  int schulnummer = 40036218;
+  String benutzername = "schueler";
+  String passwort = "S2m9374";
+  String klasseKuerzel = "12G";
+/*
+  int schulnummer = 40102573;
+  String benutzername = "schueler";
+  String passwort = "AEG_2526_S";
+  String klasseKuerzel = "9d";
+  */
 
-  late final Vertretungsplan _vp;
+
+  late Vertretungsplan _vp;
+
+  final TextEditingController _schulnummerController = TextEditingController();
+  final TextEditingController _benutzernameController = TextEditingController();
+  final TextEditingController _passwortController = TextEditingController();
+  final TextEditingController PlanController = TextEditingController();
 
   @override
   void initState() {
