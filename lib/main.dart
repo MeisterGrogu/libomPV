@@ -356,7 +356,7 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("KLASSE ${provider.klasseKuerzel.toUpperCase()} • JETZT & NÄCHSTES", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                  Text("KLASSE ${provider.klasseKuerzel.toUpperCase()} • ALS NÄCHSTES", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 10),
 
                   provider.isLoading
