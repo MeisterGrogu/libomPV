@@ -135,7 +135,7 @@ class DashboardProvider with ChangeNotifier {
 
       return {
         'nr': '—',
-        'fach': 'Schulschluss!',
+        'fach': 'Schulschluss! 🎉',
         'raum': 'Zuhause',
         'isCancelled': false,
       };
