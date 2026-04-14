@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-// Importiere das Backend deines Freundes
 import 'backend/fetcher.dart';
 import 'backend/parser.dart';
 
@@ -40,9 +39,6 @@ class SchulCockpitApp extends StatelessWidget {
   }
 }
 
-// ==========================================
-// DATENMODELLE & PROVIDER
-// ==========================================
 class HomeworkTask {
   final String id;
   final String subject;
@@ -64,7 +60,6 @@ class DashboardProvider with ChangeNotifier {
   final String _benutzername = "schueler";
   final String _passwort = "AEG_2526_S";
 
-  // NEU: Die Klasse ist jetzt nicht mehr final, sondern kann geändert werden!
   String _klasseKuerzel = "9a";
   String get klasseKuerzel => _klasseKuerzel;
 
@@ -78,10 +73,9 @@ class DashboardProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   List<HomeworkTask> get todayHomework => _localHomework.where((hw) => !hw.isDone && DateUtils.isSameDay(hw.dueDate, DateTime.now())).toList();
 
-  // NEU: Funktion zum Ändern der Klasse
   void setKlasse(String neueKlasse) {
     _klasseKuerzel = neueKlasse;
-    refreshData(); // Lade die Daten für die neue Klasse sofort neu!
+    refreshData();
   }
 
   Future<void> refreshData() async {
@@ -112,16 +106,15 @@ class DashboardProvider with ChangeNotifier {
 
       final now = DateTime.now();
 
-      // KLINGELZEITEN: Hier kannst du anpassen, wann die Stunden enden
       final endTimes = {
-        1: const TimeOfDay(hour: 8, minute: 45),
-        2: const TimeOfDay(hour: 9, minute: 35),
-        3: const TimeOfDay(hour: 10, minute: 40),
-        4: const TimeOfDay(hour: 11, minute: 30),
-        5: const TimeOfDay(hour: 12, minute: 35),
-        6: const TimeOfDay(hour: 13, minute: 25),
-        7: const TimeOfDay(hour: 14, minute: 15),
-        8: const TimeOfDay(hour: 15, minute: 0),
+        1: const TimeOfDay(hour: 8, minute: 25),
+        2: const TimeOfDay(hour: 9, minute: 10),
+        3: const TimeOfDay(hour: 10, minute: 15),
+        4: const TimeOfDay(hour: 11, minute: 10),
+        5: const TimeOfDay(hour: 12, minute: 5),
+        6: const TimeOfDay(hour: 13, minute: 40),
+        7: const TimeOfDay(hour: 14, minute: 35),
+        8: const TimeOfDay(hour: 15, minute: 30),
       };
 
       for (var s in stunden) {
@@ -142,7 +135,7 @@ class DashboardProvider with ChangeNotifier {
 
       return {
         'nr': '—',
-        'fach': 'Schulschluss! 🎉',
+        'fach': 'Schulschluss!',
         'raum': 'Zuhause',
         'isCancelled': false,
       };
@@ -160,14 +153,13 @@ class DashboardProvider with ChangeNotifier {
     }
   }
 
-  // NEU: Nimmt jetzt ein Datum (date) entgegen!
   void addHomework(String subject, String task, DateTime date) {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
     _localHomework.add(HomeworkTask(
       id: newId,
       subject: subject,
       task: task,
-      dueDate: date, // Speichert das ausgewählte Datum
+      dueDate: date,
     ));
     notifyListeners();
   }
@@ -181,9 +173,6 @@ class DashboardProvider with ChangeNotifier {
   }
 }
 
-// ==========================================
-// NAVIGATION (MAIN SCREEN)
-// ==========================================
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -233,13 +222,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// ==========================================
-// DASHBOARD SCREEN
-// ==========================================
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  // NEU: Der Einstellungs-Dialog für die Klasse
   void _showSettingsDialog(BuildContext context) {
     final provider = Provider.of<DashboardProvider>(context, listen: false);
     final controller = TextEditingController(text: provider.klasseKuerzel);
@@ -274,13 +259,12 @@ class DashboardScreen extends StatelessWidget {
   void _showAddHomeworkSheet(BuildContext context) {
     final subjectController = TextEditingController();
     final taskController = TextEditingController();
-    DateTime selectedDate = DateTime.now(); // Speichert das Datum lokal im Menü
+    DateTime selectedDate = DateTime.now();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      // WICHTIG: StatefulBuilder erlaubt es uns, das ausgewählte Datum in der Anzeige sofort zu aktualisieren!
       builder: (context) => StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
@@ -305,7 +289,6 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 15),
 
-                  // NEU: Der Datumsauswähler (Date Picker)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Fällig am: ${DateFormat('dd.MM.yyyy').format(selectedDate)}"),
@@ -318,7 +301,7 @@ class DashboardScreen extends StatelessWidget {
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (picked != null) {
-                        setModalState(() => selectedDate = picked); // Aktualisiert die Anzeige im Menü
+                        setModalState(() => selectedDate = picked);
                       }
                     },
                   ),
@@ -358,7 +341,6 @@ class DashboardScreen extends StatelessWidget {
         slivers: [
           SliverAppBar.large(
             title: Text(todayString),
-            // NEU: Das Einstellungs-Zahnrad oben rechts
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings),
@@ -466,9 +448,6 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-// ==========================================
-// STUNDENPLAN SCREEN
-// ==========================================
 class TimetablePage extends StatefulWidget {
   const TimetablePage({super.key});
 
@@ -507,7 +486,6 @@ class _TimetablePageState extends State<TimetablePage> {
 
   @override
   Widget build(BuildContext context) {
-    // NEU: Holt sich die ausgewählte Klasse dynamisch aus dem Provider!
     final provider = Provider.of<DashboardProvider>(context);
     final klasseKuerzel = provider.klasseKuerzel;
 
@@ -604,10 +582,6 @@ class _TimetablePageState extends State<TimetablePage> {
   }
 }
 
-// ==========================================
-// HAUSAUFGABEN-KALENDER (REAL MONTH GRID)
-// ==========================================
-
 class HomeworkCalendarScreen extends StatefulWidget {
   const HomeworkCalendarScreen({super.key});
 
@@ -616,14 +590,12 @@ class HomeworkCalendarScreen extends StatefulWidget {
 }
 
 class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
-  // PageController für das seitliche Scrollen zwischen Monaten
   late PageController _pageController;
   DateTime _focusedMonth = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    // Wir starten in der "Mitte" (Index 500), um in beide Richtungen scrollen zu können
     _pageController = PageController(initialPage: 500);
   }
 
@@ -636,7 +608,6 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
       ),
       body: Column(
         children: [
-          // Wochentag-Header
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Row(
@@ -656,7 +627,6 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
               controller: _pageController,
               onPageChanged: (index) {
                 setState(() {
-                  // Berechne den Monat basierend auf dem Scroll-Index
                   _focusedMonth = DateTime(
                     DateTime.now().year,
                     DateTime.now().month + (index - 500),
@@ -680,11 +650,9 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
   Widget _buildMonthGrid(DateTime month) {
     final provider = Provider.of<DashboardProvider>(context);
 
-    // Berechnungen für den Kalender-Grid
     final firstDayOfMonth = DateTime(month.year, month.month, 1);
     final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
 
-    // Wie viele leere Felder brauchen wir am Anfang? (Mo=1, So=7)
     final leadingSpaces = firstDayOfMonth.weekday - 1;
     final totalCells = leadingSpaces + lastDayOfMonth.day;
 
@@ -751,7 +719,6 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
     );
   }
 
-  // Hilfsfunktion zum Hinzufügen (direkt für das angeklickte Datum)
   void _showAddHomeworkSheet(BuildContext context, DateTime targetDate) {
     final subjectController = TextEditingController();
     final taskController = TextEditingController();
