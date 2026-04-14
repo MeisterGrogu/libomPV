@@ -5,6 +5,7 @@
 import 'package:xml/xml.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
 // exceptions.dart - Custom exception classes
 class Exceptions {
@@ -402,8 +403,8 @@ class Klasse {
 class Stunde {
   late XmlElement _data;
   late int nr;
-  late String beginn;
-  late String ende;
+  late TimeOfDay beginn;
+  late TimeOfDay ende;
   late bool anders;
   late bool ausfall;
   late bool besonders;
@@ -429,9 +430,19 @@ class Stunde {
 
     nr = int.parse(_data.findElements('St').first.innerText);
 
-    beginn = _data.findElements('Beginn').first.innerText;
+    String beginn_str = _data.findElements('Beginn').first.innerText;
 
-    ende = _data.findElements('Ende').first.innerText;
+    String ende_str = _data.findElements('Ende').first.innerText;
+
+    beginn = TimeOfDay(
+      hour: int.parse(beginn_str.split(':')[0]),
+      minute: int.parse(beginn_str.split(':')[1]),
+    );
+
+    ende = TimeOfDay(
+      hour: int.parse(ende_str.split(':')[0]),
+      minute: int.parse(ende_str.split(':')[1]),
+    );
 
     final faElement = _data.findElements('Fa').first;
     final raElement = _data.findElements('Ra').first;

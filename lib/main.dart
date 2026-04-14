@@ -106,30 +106,16 @@ class DashboardProvider with ChangeNotifier {
 
       final now = DateTime.now();
 
-      final endTimes = {
-        1: const TimeOfDay(hour: 8, minute: 25),
-        2: const TimeOfDay(hour: 9, minute: 10),
-        3: const TimeOfDay(hour: 10, minute: 15),
-        4: const TimeOfDay(hour: 11, minute: 10),
-        5: const TimeOfDay(hour: 12, minute: 5),
-        6: const TimeOfDay(hour: 13, minute: 40),
-        7: const TimeOfDay(hour: 14, minute: 35),
-        8: const TimeOfDay(hour: 15, minute: 30),
-      };
-
       for (var s in stunden) {
-        final timeForLesson = endTimes[s.nr];
-        if (timeForLesson != null) {
-          final endDateTime = DateTime(now.year, now.month, now.day, timeForLesson.hour, timeForLesson.minute);
+        final endDateTime = DateTime(now.year, now.month, now.day, s.ende.hour, s.ende.minute);
 
-          if (now.isBefore(endDateTime)) {
-            return {
-              'nr': s.nr,
-              'fach': s.ausfall ? 'FÄLLT AUS' : (s.fach.isNotEmpty ? s.fach : '—'),
-              'raum': s.raum,
-              'isCancelled': s.ausfall,
-            };
-          }
+        if (now.isBefore(endDateTime)) {
+          return {
+            'nr': s.nr,
+            'fach': s.ausfall ? 'FÄLLT AUS' : (s.fach.isNotEmpty ? s.fach : '—'),
+            'raum': s.raum,
+            'isCancelled': s.ausfall,
+          };
         }
       }
 
