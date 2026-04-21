@@ -65,6 +65,8 @@ class DashboardProvider with ChangeNotifier {
 
   VpDay? _currentDayData;
   bool _isLoading = false;
+  DateTime? _lastUpdated;
+  bool _hasFetched = false;
 
   final List<HomeworkTask> _localHomework = [
     HomeworkTask(id: '1', subject: 'Mathe', task: 'S. 42 Nr. 1-5', dueDate: DateTime.now()),
@@ -73,28 +75,41 @@ class DashboardProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   List<HomeworkTask> get todayHomework => _localHomework.where((hw) => !hw.isDone && DateUtils.isSameDay(hw.dueDate, DateTime.now())).toList();
 
+  DateTime? get lastUpdated => _lastUpdated;
+
   void setKlasse(String neueKlasse) {
     _klasseKuerzel = neueKlasse;
-    refreshData();
+    notifyListeners();
   }
 
-  Future<void> refreshData() async {
+  Future<void> refreshData({bool force = false}) async {
+    if (_isLoading) return;
+    if (_hasFetched && !force) return;
     _isLoading = true;
     notifyListeners();
 
     try {
+      if (force) {
+        Vertretungsplan.clearCache();
+      }
       final vp = Vertretungsplan(
         schulnummer: _schulnummer,
         benutzername: _benutzername,
         passwort: _passwort,
       );
       _currentDayData = await vp.fetch(datum: DateTime.now());
+      _lastUpdated = DateTime.now();
+      _hasFetched = true;
     } catch (e) {
       debugPrint("Fehler beim Laden: $e");
     }
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> forceRefresh() async {
+    await refreshData(force: true);
   }
 
   Map<String, dynamic>? getNextLesson() {
@@ -166,7 +181,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
@@ -174,6 +189,28 @@ class _MainScreenState extends State<MainScreen> {
     const TimetablePage(),
     const HomeworkCalendarScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      if (!mounted) return;
+      try {
+        Provider.of<DashboardProvider>(context, listen: false).forceRefresh();
+      } catch (_) {}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +360,9 @@ class DashboardScreen extends StatelessWidget {
     final todayString = DateFormat('EEEE', 'de_DE').format(DateTime.now());
 
     return Scaffold(
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: () => provider.forceRefresh(),
+        child: CustomScrollView(
         slivers: [
           SliverAppBar.large(
             title: Text(todayString),
@@ -343,7 +382,10 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("KLASSE ${provider.klasseKuerzel.toUpperCase()} • ALS NÄCHSTES", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
+                  if (provider.lastUpdated != null)
+                    Text("Zuletzt aktualisiert: ${DateFormat('dd.MM.y HH:mm', 'de_DE').format(provider.lastUpdated!)}", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 6),
 
                   provider.isLoading
                       ? const Center(child: CircularProgressIndicator())
@@ -367,6 +409,7 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddHomeworkSheet(context),
         label: const Text("Hausaufgabe"),
@@ -477,7 +520,14 @@ class _TimetablePageState extends State<TimetablePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Plan für $klasseKuerzel'),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Plan für $klasseKuerzel'),
+            if (provider.lastUpdated != null)
+              Text(DateFormat('dd.MM.y HH:mm', 'de_DE').format(provider.lastUpdated!), style: const TextStyle(fontSize: 12)),
+          ],
+        ),
         centerTitle: true,
       ),
       body: FutureBuilder<List<VpDay>>(
@@ -516,42 +566,48 @@ class _TimetablePageState extends State<TimetablePage> {
                           return const Center(child: Text("Keine Stunden eingetragen."));
                         }
 
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: stunden.length,
-                          itemBuilder: (context, i) {
-                            final s = stunden[i];
-                            final isCancelled = s.ausfall;
-                            final title = isCancelled ? 'Ausfall' : (s.fach.isNotEmpty ? s.fach : 'Freistunde');
-
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              elevation: isCancelled ? 0 : 2,
-                              color: isCancelled ? Colors.red.withOpacity(0.1) : Theme.of(context).cardColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: isCancelled ? const BorderSide(color: Colors.redAccent, width: 1) : BorderSide.none,
-                              ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isCancelled ? Colors.redAccent : Colors.deepPurple.withOpacity(0.2),
-                                  foregroundColor: isCancelled ? Colors.white : Colors.white,
-                                  child: Text("${s.nr}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                                title: Text(
-                                    title,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      decoration: isCancelled ? TextDecoration.lineThrough : null,
-                                      color: isCancelled ? Colors.redAccent : null,
-                                    )
-                                ),
-                                subtitle: Text(s.raum.isNotEmpty ? "Raum: ${s.raum}" : "Kein Raum angegeben"),
-                                trailing: isCancelled ? const Icon(Icons.cancel_outlined, color: Colors.redAccent) : null,
-                              ),
-                            );
+                        return RefreshIndicator(
+                          onRefresh: () async {
+                            await Provider.of<DashboardProvider>(context, listen: false).forceRefresh();
+                            setState(() {});
                           },
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: stunden.length,
+                            itemBuilder: (context, i) {
+                              final s = stunden[i];
+                              final isCancelled = s.ausfall;
+                              final title = isCancelled ? 'Ausfall' : (s.fach.isNotEmpty ? s.fach : 'Freistunde');
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: isCancelled ? 0 : 2,
+                                color: isCancelled ? Colors.red.withOpacity(0.1) : Theme.of(context).cardColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: isCancelled ? const BorderSide(color: Colors.redAccent, width: 1) : BorderSide.none,
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: isCancelled ? Colors.redAccent : Colors.deepPurple.withOpacity(0.2),
+                                    foregroundColor: isCancelled ? Colors.white : Colors.white,
+                                    child: Text("${s.nr}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                  title: Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        decoration: isCancelled ? TextDecoration.lineThrough : null,
+                                        color: isCancelled ? Colors.redAccent : null,
+                                      )
+                                  ),
+                                  subtitle: Text(s.raum.isNotEmpty ? "Raum: ${s.raum}" : "Kein Raum angegeben"),
+                                  trailing: isCancelled ? const Icon(Icons.cancel_outlined, color: Colors.redAccent) : null,
+                                ),
+                              );
+                            },
+                          ),
                         );
                       } catch (e) {
                         return const Center(child: Text('Für diesen Tag sind keine Daten verfügbar.'));
@@ -589,7 +645,19 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateFormat('MMMM yyyy', 'de_DE').format(_focusedMonth)),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(DateFormat('MMMM yyyy', 'de_DE').format(_focusedMonth)),
+            Builder(
+              builder: (ctx) {
+                final last = Provider.of<DashboardProvider>(ctx).lastUpdated;
+                if (last == null) return const SizedBox.shrink();
+                return Text(DateFormat('dd.MM.y HH:mm', 'de_DE').format(last), style: const TextStyle(fontSize: 12));
+              },
+            )
+          ],
+        ),
         centerTitle: true,
       ),
       body: Column(
@@ -603,7 +671,9 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
                     child: Text(d,
                         style: const TextStyle(
                             color: Colors.grey,
-                            fontWeight: FontWeight.bold))),
+                            fontWeight: FontWeight.bold)
+                          )
+                        ),
               ))
                   .toList(),
             ),
@@ -642,16 +712,21 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
     final leadingSpaces = firstDayOfMonth.weekday - 1;
     final totalCells = leadingSpaces + lastDayOfMonth.day;
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        childAspectRatio: 0.6,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-      ),
-      itemCount: totalCells,
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<DashboardProvider>(context, listen: false).forceRefresh();
+        setState(() {});
+      },
+      child: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          childAspectRatio: 0.6,
+          mainAxisSpacing: 4,
+          crossAxisSpacing: 4,
+        ),
+        itemCount: totalCells,
+        itemBuilder: (context, index) {
         if (index < leadingSpaces) return const SizedBox.shrink();
 
         final dayNumber = index - leadingSpaces + 1;
@@ -702,7 +777,8 @@ class _HomeworkCalendarScreenState extends State<HomeworkCalendarScreen> {
           ),
         );
       },
-    );
+    ),
+  );
   }
 
   void _showAddHomeworkSheet(BuildContext context, DateTime targetDate) {

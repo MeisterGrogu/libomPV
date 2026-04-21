@@ -10,6 +10,7 @@ class Vertretungsplan {
   final String passwort;
   final String _webpath;
   final String _dateinamenschema;
+  static final Map<String, VpDay> _cache = {};
 
   Vertretungsplan({
     required this.schulnummer,
@@ -27,7 +28,6 @@ class Vertretungsplan {
           schulnummer: schulnummer,
         );
 
-  /// Helper method to build the webpath during initialization
   static String _buildWebpath({
     required String benutzername,
     required String passwort,
@@ -37,32 +37,26 @@ class Vertretungsplan {
   }) {
     String processedServerurl = serverurl;
     String processedVerzeichnis = verzeichnis;
-
-    // Remove trailing slash from serverurl
+    
     if (processedServerurl.endsWith("/")) {
       processedServerurl = processedServerurl.substring(0, processedServerurl.length - 1);
     }
 
-    // Remove protocol prefix from serverurl
     if (processedServerurl.startsWith("http://") || processedServerurl.startsWith("https://")) {
       final parts = processedServerurl.split("://");
       processedServerurl = parts.length > 1 ? parts[1] : parts[0];
     }
 
-    // Remove trailing slash from verzeichnis
     if (processedVerzeichnis.endsWith("/")) {
       processedVerzeichnis = processedVerzeichnis.substring(0, processedVerzeichnis.length - 1);
     }
 
-    // Remove leading slash from verzeichnis
     if (processedVerzeichnis.startsWith("/")) {
       processedVerzeichnis = processedVerzeichnis.substring(1);
     }
 
-    // Format verzeichnis with schulnummer
     processedVerzeichnis = processedVerzeichnis.replaceAll("{schulnummer}", schulnummer.toString());
 
-    // Do not include credentials in the URL; send them via Authorization header instead.
     return "$processedServerurl/$processedVerzeichnis";
   }
 
@@ -71,18 +65,12 @@ class Vertretungsplan {
     return "Vertretungsplan $benutzername@$schulnummer";
   }
 
-  /// Fetches the substitution plan for a specific date
-  /// 
-  /// [datum] can be either a DateTime or an int in YYYYMMDD format
-  /// [datei] optional custom filename
   Future<VpDay> fetch({
     dynamic datum,
     String? datei,
   }) async {
-    // Default to today if datum is not provided
     datum ??= DateTime.now();
 
-    // Convert datum to DateTime
     DateTime datumDate;
     if (datum is int) {
       final datumStr = datum.toString();
@@ -96,20 +84,18 @@ class Vertretungsplan {
       throw ArgumentError('datum must be either DateTime or int');
     }
 
-    // Generate filename
     String file;
     if (datei == null) {
       file = _formatDateToFilename(datumDate, _dateinamenschema);
     } else {
       file = datei.replaceAll("{schulnummer}", schulnummer.toString());
     }
+    if (_cache.containsKey(file)) {
+      return _cache[file]!;
+    }
 
-    // Use HTTPS to avoid redirects that may drop Authorization headers.
     final uri = Uri.parse("https://$_webpath/$file");
 
-    // Send credentials using HTTP Basic Authorization header.
-    // Some HTTP clients/servers do not accept credentials embedded in the URL,
-    // so explicitly add the Authorization header here.
     final String _basicAuth = base64Encode(utf8.encode('$benutzername:$passwort'));
     final response = await http.get(
       uri,
@@ -118,7 +104,9 @@ class Vertretungsplan {
 
     final httpStatusCode = response.statusCode;
     if (httpStatusCode == 200) {
-      return VpDay(response.bodyBytes);
+      final day = VpDay(response.bodyBytes);
+      _cache[file] = day;
+      return day;
     } else if (httpStatusCode == 401) {
       throw InvalidCredentialsError(
         "Passwort oder Benutzername sind ungültig.",
@@ -137,34 +125,26 @@ class Vertretungsplan {
     }
   }
 
-  /// Formats a DateTime to filename based on schema
   String _formatDateToFilename(DateTime date, String schema) {
     String result = schema;
     
-    // Replace year formats
     result = result.replaceAll('%Y', date.year.toString().padLeft(4, '0'));
     result = result.replaceAll('%y', (date.year % 100).toString().padLeft(2, '0'));
     
-    // Replace month formats
     result = result.replaceAll('%m', date.month.toString().padLeft(2, '0'));
     
-    // Replace day formats
     result = result.replaceAll('%d', date.day.toString().padLeft(2, '0'));
     
-    // Replace hour formats
     result = result.replaceAll('%H', date.hour.toString().padLeft(2, '0'));
     result = result.replaceAll('%I', ((date.hour % 12) == 0 ? 12 : (date.hour % 12)).toString().padLeft(2, '0'));
     
-    // Replace minute formats
     result = result.replaceAll('%M', date.minute.toString().padLeft(2, '0'));
     
-    // Replace second formats
     result = result.replaceAll('%S', date.second.toString().padLeft(2, '0'));
     
     return result;
   }
 
-  /// Fetches all available substitution plans within a 60-day range (30 days before and after today)
   Future<List<VpDay>> fetchall() async {
     final today = DateTime.now();
     final startDate = today.subtract(const Duration(days: 30));
@@ -173,7 +153,6 @@ class Vertretungsplan {
     final plans = <VpDay>[];
 
     for (final tag in _dateRange(startDate, endDate)) {
-      // Skip weekends (Saturday = 6, Sunday = 7 in Dart)
       if (tag.weekday > 5) {
         continue;
       }
@@ -182,7 +161,6 @@ class Vertretungsplan {
         final plan = await fetch(datum: tag);
         plans.add(plan);
       } on FetchingError {
-        // Continue to next date if fetching fails
         continue;
       }
     }
@@ -196,12 +174,14 @@ class Vertretungsplan {
     return plans;
   }
 
-  /// Generator for date range
   Iterable<DateTime> _dateRange(DateTime startDate, DateTime endDate) sync* {
     DateTime currentDate = startDate;
     while (currentDate.isBefore(endDate) || currentDate.isAtSameMomentAs(endDate)) {
       yield currentDate;
       currentDate = currentDate.add(const Duration(days: 1));
     }
+  }
+  static void clearCache() {
+    _cache.clear();
   }
 }

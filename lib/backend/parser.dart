@@ -1,13 +1,8 @@
-// Required dependencies in pubspec.yaml:
-// dependencies:
-//   xml: ^6.6.1
-
 import 'package:xml/xml.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 
-// exceptions.dart - Custom exception classes
 class Exceptions {
   static XMLNotFoundException XMLNotFound(String message) {
     return XMLNotFoundException(message);
@@ -23,12 +18,10 @@ class XMLNotFoundException implements Exception {
   String toString() => 'XMLNotFoundException: $message';
 }
 
-// lib.dart - Pretty XML utility function
 String prettyxml(XmlDocument document) {
   return document.toXmlString(pretty: true, indent: '  ');
 }
 
-// Main VpDay class
 class VpDay {
   late XmlDocument _mobdaten;
   late XmlElement _dataroot;
@@ -39,11 +32,9 @@ class VpDay {
   late String zusatzInfo;
 
   VpDay(dynamic mobdaten) {
-    // Handle different input types: XmlDocument, bytes (List<int>), or String
     if (mobdaten is XmlDocument) {
       _mobdaten = mobdaten;
     } else if (mobdaten is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(mobdaten);
       _mobdaten = XmlDocument.parse(xmlString);
     } else if (mobdaten is String) {
@@ -54,24 +45,17 @@ class VpDay {
 
     _dataroot = _mobdaten.rootElement;
 
-    // Parse zeitstempel
     final zeitstempelText = _mobdaten.findAllElements('Kopf').first
         .findElements('zeitstempel').first.innerText;
     zeitstempel = _parseDateTime(zeitstempelText, '%d.%m.%Y, %H:%M');
 
-    // Get datei
     datei = _mobdaten.findAllElements('Kopf').first
         .findElements('datei').first.innerText;
 
-    // Parse datum from datei string (characters 6-14)
     datum = _parseDate(datei.substring(6, 14), '%Y%m%d');
 
-    // Get weekday (0 = Monday in Dart, 1 = Monday in Python)
-    // Dart's DateTime.weekday: 1 = Monday, 7 = Sunday
-    // Python's weekday(): 0 = Monday, 6 = Sunday
     wochentag = datum.weekday - 1;
 
-    // Build zusatzInfo from ZiZeile elements
     List<String> ziZeilen = [];
     for (var zusatzInfo in _dataroot.findAllElements('ZusatzInfo')) {
       for (var ziZeile in zusatzInfo.findElements('ZiZeile')) {
@@ -84,27 +68,21 @@ class VpDay {
     zusatzInfo = ziZeilen.join('\n');
   }
 
-  // Helper method to parse datetime string with format
   DateTime _parseDateTime(String dateStr, String format) {
-    // Convert Python strptime format to Dart parsing
-    // Python: "%d.%m.%Y, %H:%M" -> "31.12.2023, 14:30"
     final parts = dateStr.split(', ');
     final dateParts = parts[0].split('.');
     final timeParts = parts[1].split(':');
     
     return DateTime(
-      int.parse(dateParts[2]), // year
-      int.parse(dateParts[1]), // month
-      int.parse(dateParts[0]), // day
-      int.parse(timeParts[0]), // hour
-      int.parse(timeParts[1]), // minute
+      int.parse(dateParts[2]),
+      int.parse(dateParts[1]),
+      int.parse(dateParts[0]),
+      int.parse(timeParts[0]),
+      int.parse(timeParts[1]),
     );
   }
 
-  // Helper method to parse date string with format
   DateTime _parseDate(String dateStr, String format) {
-    // Convert Python strptime format to Dart parsing
-    // Python: "%Y%m%d" -> "20231231"
     final year = int.parse(dateStr.substring(0, 4));
     final month = int.parse(dateStr.substring(4, 6));
     final day = int.parse(dateStr.substring(6, 8));
@@ -155,7 +133,6 @@ class VpDay {
     for (var ft in freieTageElement.first.findElements('ft')) {
       final text = ft.innerText;
       if (text.isNotEmpty) {
-        // Parse format "%y%m%d" -> "231231"
         final year = 2000 + int.parse(text.substring(0, 2));
         final month = int.parse(text.substring(2, 4));
         final day = int.parse(text.substring(4, 6));
@@ -182,7 +159,6 @@ class VpDay {
         continue;
       }
 
-      // Wir sammeln fuer alle Kurse dieser Klasse die Nummer und das Lehrerkuerzel
       for (var ue in unterrichtElement.first.findElements('Ue')) {
         final ueNrElement = ue.findElements('UeNr');
         if (ueNrElement.isNotEmpty) {
@@ -199,14 +175,11 @@ class VpDay {
         continue;
       }
 
-      // Jetzt gehen wir durch alle Stunden und schauen, ob sie geändert sind
       for (var std in alleStd) {
-        // Wenn nicht fuegen wir die Lehrer, welche die Stunde halten zu den nicht kranken Lehrern hinzu
         if (!std.anders && !std.ausfall && !std.besonders) {
           for (var sr in std.lehrer.split(' ')) {
             if (sr.isNotEmpty) {
               leNichtKrank.add(sr);
-              // Wenn der Lehrer fälschlicherweise als krank eingeordnet wurde, löschen wir ihn aus der kranken Liste
               if (leKrank.contains(sr)) {
                 leKrank.remove(sr);
               }
@@ -216,7 +189,6 @@ class VpDay {
           for (var sr in std.lehrer.split(' ')) {
             if (sr.isNotEmpty) {
               leNichtKrank.add(sr);
-              // Wenn der Lehrer fälschlicherweise als krank eingeordnet wurde, löschen wir ihn aus der kranken Liste
               if (leKrank.contains(sr)) {
                 leKrank.remove(sr);
               }
@@ -227,15 +199,12 @@ class VpDay {
             final le = lehrerInfo.firstWhere(
               (item) => item['nr'] == std.kursnummer.toString()
             );
-            // Wenn die Stunde geändert ist schauen wir, ob der lehrer schon in der nicht kranken Liste ist.
             if (!leNichtKrank.contains(le['kurz'])) {
-              // Wenn nicht, muss er krank sein
               if (!leKrank.contains(le['kurz'])) {
                 leKrank.add(le['kurz']!);
               }
             }
           } catch (e) {
-            // No matching item found, continue
             continue;
           }
         } else if (std.besonders) {
@@ -253,7 +222,6 @@ class VpDay {
       }
     }
 
-    // Sorry fuer den mess, aber es funktioniert und fast alles ist leider auch nötig
     leKrank.sort();
     return leKrank;
   }
@@ -264,7 +232,6 @@ class VpDay {
     final zielpfad = File(pfad).absolute.path;
     final directory = File(zielpfad).parent.path;
 
-    // Stellt sicher, dass das Verzeichnis existiert
     if (!Directory(directory).existsSync()) {
       Directory(directory).createSync(recursive: true);
     }
@@ -283,7 +250,6 @@ class Klasse {
 
   Klasse({required XmlElement xmldata}) {
     _data = xmldata;
-    // Kuerzel der Klasse
     kuerzel = _data.findElements('Kurz').first.innerText;
   }
 
@@ -415,11 +381,9 @@ class Stunde {
   late String info;
 
   Stunde({required dynamic xmldata}) {
-    // Handle different input types: XmlElement, bytes (List<int>), or String
     if (xmldata is XmlElement) {
       _data = xmldata;
     } else if (xmldata is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(xmldata);
       _data = XmlDocument.parse(xmlString).rootElement;
     } else if (xmldata is String) {
@@ -513,10 +477,6 @@ class Stunde {
   }
 }
 
-// ╭──────────────────────────────────────────────────────────────────────────────────────────╮
-// │                                         Kurs                                             │
-// ╰──────────────────────────────────────────────────────────────────────────────────────────╯
-
 class Kurs {
   late XmlElement _data;
   late String lehrer;
@@ -527,11 +487,9 @@ class Kurs {
   Kurs(dynamic xmldata) {
     XmlElement tempData;
     
-    // Handle different input types: XmlElement, bytes (List<int>), or String
     if (xmldata is XmlElement) {
       tempData = xmldata;
     } else if (xmldata is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(xmldata);
       tempData = XmlDocument.parse(xmlString).rootElement;
     } else if (xmldata is String) {
@@ -540,7 +498,6 @@ class Kurs {
       throw ArgumentError('xmldata must be XmlElement, List<int>, or String');
     }
 
-    // Ich nehme direkt das UeNr-Element, da das Ue Element nichts brauchbares enthält
     final ueNrElements = tempData.findElements('UeNr');
     if (ueNrElements.isNotEmpty) {
       _data = ueNrElements.first;
