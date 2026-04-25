@@ -104,7 +104,8 @@ class Vertretungsplan {
 
     final httpStatusCode = response.statusCode;
     if (httpStatusCode == 200) {
-      final day = VpDay(response.bodyBytes);
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final day = VpDay(decodedBody);
       _cache[file] = day;
       return day;
     } else if (httpStatusCode == 401) {
