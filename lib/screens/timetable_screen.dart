@@ -303,7 +303,7 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
                       children: [
                         Expanded(
                           child: Text(
-                            s!.fach.isNotEmpty ? s.fach : 'Vertretung / Info',
+                            s.fach.isNotEmpty ? s.fach : 'Vertretung / Info',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
