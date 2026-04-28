@@ -45,12 +45,24 @@ class VpDay {
 
     _dataroot = _mobdaten.rootElement;
 
-    final zeitstempelText = _mobdaten.findAllElements('Kopf').first
-        .findElements('zeitstempel').first.innerText;
+    // Parse zeitstempel
+    final kopfElements = _mobdaten.findAllElements('Kopf').toList();
+    if (kopfElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Kopf-Element nicht gefunden');
+    }
+    final zeitstempelElements = kopfElements.first.findElements('zeitstempel').toList();
+    if (zeitstempelElements.isEmpty) {
+      throw Exceptions.XMLNotFound('zeitstempel-Element nicht gefunden');
+    }
+    final zeitstempelText = zeitstempelElements.first.innerText;
     zeitstempel = _parseDateTime(zeitstempelText, '%d.%m.%Y, %H:%M');
 
-    datei = _mobdaten.findAllElements('Kopf').first
-        .findElements('datei').first.innerText;
+    // Parse datei
+    final dateiElements = kopfElements.first.findElements('datei').toList();
+    if (dateiElements.isEmpty) {
+      throw Exceptions.XMLNotFound('datei-Element nicht gefunden');
+    }
+    datei = dateiElements.first.innerText;
 
     datum = _parseDate(datei.substring(6, 14), '%Y%m%d');
 
@@ -250,7 +262,11 @@ class Klasse {
 
   Klasse({required XmlElement xmldata}) {
     _data = xmldata;
-    kuerzel = _data.findElements('Kurz').first.innerText;
+    final kurzElements = _data.findElements('Kurz').toList();
+    if (kurzElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Kurz-Element in Klasse nicht gefunden');
+    }
+    kuerzel = kurzElements.first.innerText;
   }
 
   @override
@@ -260,7 +276,7 @@ class Klasse {
 
   List<Stunde> stundenInPeriode(int periode) {
     List<Stunde> fin = [];
-    final plElements = _data.findElements('Pl');
+    final plElements = _data.findElements('Pl').toList();
     
     if (plElements.isEmpty) {
       throw Exceptions.XMLNotFound(
@@ -269,7 +285,7 @@ class Klasse {
 
     final pl = plElements.first;
     for (var std in pl.findElements('Std')) {
-      final stElements = std.findElements('St');
+      final stElements = std.findElements('St').toList();
       if (stElements.isNotEmpty && stElements.first.innerText == periode.toString()) {
         fin.add(Stunde(xmldata: std));
       }
@@ -285,7 +301,7 @@ class Klasse {
 
   List<Stunde> stunden() {
     List<Stunde> fin = [];
-    final plElements = _data.findElements('Pl');
+    final plElements = _data.findElements('Pl').toList();
     
     if (plElements.isEmpty) {
       throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');
@@ -293,7 +309,7 @@ class Klasse {
 
     final pl = plElements.first;
     for (var std in pl.findElements('Std')) {
-      final stElements = std.findElements('St');
+      final stElements = std.findElements('St').toList();
       if (stElements.isNotEmpty) {
         fin.add(Stunde(xmldata: std));
       }
@@ -392,11 +408,30 @@ class Stunde {
       throw ArgumentError('xmldata must be XmlElement, List<int>, or String');
     }
 
-    nr = int.parse(_data.findElements('St').first.innerText);
+    final stAlternativElements = _data.findElements('StAlternativ').toList();
+    final nrElements = _data.findElements('St').toList();
+    
+    if (stAlternativElements.isNotEmpty && stAlternativElements.first.innerText.isNotEmpty) {
+      nr = int.parse(stAlternativElements.first.innerText);
+    } else if (nrElements.isNotEmpty) {
+      nr = int.parse(nrElements.first.innerText);
+    } else {
+      throw Exceptions.XMLNotFound('Stunde Nr nicht gefunden');
+    }
 
-    String beginn_str = _data.findElements('Beginn').first.innerText;
+    print(nr);
 
-    String ende_str = _data.findElements('Ende').first.innerText;
+    final beginnElements = _data.findElements('Beginn').toList();
+    if (beginnElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Beginn-Element nicht gefunden');
+    }
+    String beginn_str = beginnElements.first.innerText;
+
+    final endeElements = _data.findElements('Ende').toList();
+    if (endeElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Ende-Element nicht gefunden');
+    }
+    String ende_str = endeElements.first.innerText;
 
     beginn = TimeOfDay(
       hour: int.parse(beginn_str.split(':')[0]),
@@ -408,9 +443,17 @@ class Stunde {
       minute: int.parse(ende_str.split(':')[1]),
     );
 
-    final faElement = _data.findElements('Fa').first;
-    final raElement = _data.findElements('Ra').first;
-    final leElement = _data.findElements('Le').first;
+    final faElements = _data.findElements('Fa').toList();
+    final raElements = _data.findElements('Ra').toList();
+    final leElements = _data.findElements('Le').toList();
+    
+    if (faElements.isEmpty || raElements.isEmpty || leElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Fa, Ra oder Le Element nicht gefunden');
+    }
+    
+    final faElement = faElements.first;
+    final raElement = raElements.first;
+    final leElement = leElements.first;
 
     if (faElement.getAttribute('FaAe') != null ||
         raElement.getAttribute('RaAe') != null ||
@@ -428,9 +471,9 @@ class Stunde {
 
     besonders = false;
     try {
-      final nrElements = _data.findElements('Nr');
-      if (nrElements.isNotEmpty) {
-        kursnummer = int.parse(nrElements.first.innerText);
+      final nrEl = _data.findElements('Nr').toList();
+      if (nrEl.isNotEmpty) {
+        kursnummer = int.parse(nrEl.first.innerText);
       } else {
         besonders = true;
         kursnummer = -1;
@@ -441,33 +484,33 @@ class Stunde {
     }
 
     String fachTemp;
-    final faElements = _data.findElements('Fa');
-    if (faElements.isNotEmpty && faElements.first.innerText.isNotEmpty) {
-      fachTemp = faElements.first.innerText;
+    final faEl = _data.findElements('Fa').toList();
+    if (faEl.isNotEmpty && faEl.first.innerText.isNotEmpty) {
+      fachTemp = faEl.first.innerText;
     } else {
       fachTemp = '';
     }
     fach = (!ausfall && !besonders) ? fachTemp : '';
 
     String tmpLe;
-    final leElements = _data.findElements('Le');
-    if (leElements.isNotEmpty && leElements.first.innerText.isNotEmpty) {
-      tmpLe = leElements.first.innerText;
+    final leEl = _data.findElements('Le').toList();
+    if (leEl.isNotEmpty && leEl.first.innerText.isNotEmpty) {
+      tmpLe = leEl.first.innerText;
     } else {
       tmpLe = '';
     }
     lehrer = !ausfall ? tmpLe : '';
 
     String tmpRa;
-    final raElements = _data.findElements('Ra');
-    if (raElements.isNotEmpty && raElements.first.innerText.isNotEmpty) {
-      tmpRa = raElements.first.innerText;
+    final raEl = _data.findElements('Ra').toList();
+    if (raEl.isNotEmpty && raEl.first.innerText.isNotEmpty) {
+      tmpRa = raEl.first.innerText;
     } else {
       tmpRa = '';
     }
     raum = !ausfall ? tmpRa : '';
 
-    final ifElements = _data.findElements('If');
+    final ifElements = _data.findElements('If').toList();
     info = ifElements.isNotEmpty ? ifElements.first.innerText : '';
   }
 
