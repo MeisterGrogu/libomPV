@@ -9,12 +9,7 @@ void main() async {
   await initializeDateFormatting('de_DE', null);
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => DashboardProvider()..refreshData()),
-      ],
-      child: const SchulCockpitApp(),
-    ),
+    const SchulCockpitApp(),
   );
 }
 
@@ -32,7 +27,54 @@ class SchulCockpitApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepPurple,
         scaffoldBackgroundColor: const Color(0xFF121212),
       ),
-      home: const MainScreen(),
+      home: const _InitializerWidget(),
+    );
+  }
+}
+
+class _InitializerWidget extends StatefulWidget {
+  const _InitializerWidget();
+
+  @override
+  State<_InitializerWidget> createState() => _InitializerWidgetState();
+}
+
+class _InitializerWidgetState extends State<_InitializerWidget> {
+  late Future<DashboardProvider> _providerFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _providerFuture = _initializeProvider();
+  }
+
+  Future<DashboardProvider> _initializeProvider() async {
+    final provider = DashboardProvider();
+    await provider.initialize();
+    await provider.refreshData();
+    return provider;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DashboardProvider>(
+      future: _providerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Fehler: ${snapshot.error}')),
+          );
+        }
+        return ChangeNotifierProvider<DashboardProvider>.value(
+          value: snapshot.data!,
+          child: const MainScreen(),
+        );
+      },
     );
   }
 }

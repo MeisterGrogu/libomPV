@@ -4,18 +4,25 @@ from datetime import date
 klasse = "9d"
 
 vp = Vertretungsplan(
-    schulnummer=40102573, benutzername="schueler", passwort="AEG_2526_S"
+    schulnummer=40102573,
+    benutzername="schueler",
+    passwort="AEG_2526_S",
+    serverurl="stundenplan24.de",
+    verzeichnis="{schulnummer}/mobil/mobdaten",
+    dateinamenschema="PlanKl%Y%m%d.xml",
 )
 
-tag = vp.fetch(date(2026, 2, 3))
-klassen = tag.klassen()
+lehrer: set[str] = set()
 
-klasse = None
+# list of all teachers in the plan
+for tag in range(4, 9):
+    tag = vp.fetch(date(2026, 5, tag))
 
-for i in klassen:
-    if "9d" in str(i).lower():
-        klasse = i
+    for klasse in tag.klassen():
+        if klasse.kürzel != "GTS":
+            for stunde in klasse.stunden():
+                if stunde.lehrer:
+                    lehrer.add(stunde.lehrer)
+                    print(stunde.lehrer + " | " + klasse.kürzel)
 
-for stunde in klasse.stunden():
-    if not stunde.ausfall:
-        print(f"{stunde.nr} | {stunde.fach} bei {stunde.lehrer} in {stunde.raum}")
+print(lehrer)

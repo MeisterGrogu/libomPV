@@ -419,8 +419,6 @@ class Stunde {
       throw Exceptions.XMLNotFound('Stunde Nr nicht gefunden');
     }
 
-    print(nr);
-
     final beginnElements = _data.findElements('Beginn').toList();
     if (beginnElements.isEmpty) {
       throw Exceptions.XMLNotFound('Beginn-Element nicht gefunden');

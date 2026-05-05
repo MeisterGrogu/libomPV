@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../backend/fetcher.dart';
 import '../backend/parser.dart';
+import '../backend/teacher_lookup_table.dart';
 import '../providers/dashboard_provider.dart';
 
 class TimetablePage extends StatefulWidget {
@@ -19,7 +20,6 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
 
   late final Vertretungsplan _vp;
   bool _isLoading = true;
-  bool _isWeekView = false;
 
   // New strict Mon-Fri lists and map
   List<DateTime> _calendarDays = [];
@@ -28,6 +28,23 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
 
   @override
   bool get wantKeepAlive => true;
+
+  /// Converts teacher abbreviations to full names
+  /// Example: "HPl SZi" -> "Herr Plath, Frau Scholze Zimmermann"
+  String _getFullTeacherNames(String teacherAbbreviations) {
+    if (teacherAbbreviations.isEmpty) return '';
+    
+    final abbreviations = teacherAbbreviations.split(' ');
+    final fullNames = <String>[];
+    
+    for (final abbr in abbreviations) {
+      if (abbr.isNotEmpty && teacherLookupTable.containsKey(abbr)) {
+        fullNames.add(teacherLookupTable[abbr]!);
+      }
+    }
+    
+    return fullNames.join(', ');
+  }
 
   @override
   void initState() {
@@ -115,6 +132,7 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
     super.build(context);
     final provider = Provider.of<DashboardProvider>(context);
     final klasseKuerzel = provider.klasseKuerzel;
+    final isWeekView = provider.isWeekView;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,12 +147,10 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_isWeekView ? Icons.calendar_view_day_rounded : Icons.calendar_view_week_rounded),
-            tooltip: _isWeekView ? "Tagesansicht" : "Wochenansicht",
+            icon: Icon(isWeekView ? Icons.calendar_view_day_rounded : Icons.calendar_view_week_rounded),
+            tooltip: isWeekView ? "Tagesansicht" : "Wochenansicht",
             onPressed: () {
-              setState(() {
-                _isWeekView = !_isWeekView;
-              });
+              provider.setWeekView(!isWeekView);
             },
           ),
           const SizedBox(width: 8),
@@ -143,10 +159,10 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-          ? Center(child: Text('Fehler: $_errorMessage'))
+          ? const Center(child: Text('Kein Plan verfügbar'))
           : _calendarDays.isEmpty
           ? const Center(child: Text('Keine Daten verfügbar'))
-          : _isWeekView
+          : isWeekView
           ? _buildWeekView(klasseKuerzel)
           : _buildDayView(klasseKuerzel),
     );
@@ -349,7 +365,7 @@ class _TimetablePageState extends State<TimetablePage> with AutomaticKeepAliveCl
                                 children: [
                                   const Icon(Icons.person, size: 12, color: Colors.white70),
                                   const SizedBox(width: 4),
-                                  Text(s.lehrer, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                  Text(_getFullTeacherNames(s.lehrer), style: const TextStyle(fontSize: 12, color: Colors.white70)),
                                 ],
                               ),
                             ),
