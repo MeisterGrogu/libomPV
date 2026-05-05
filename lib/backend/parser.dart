@@ -36,8 +36,10 @@ class VpDay {
   late DateTime datum;
   late int wochentag;
   late String zusatzInfo;
+  late bool regulaerPlan = false;
+  late String woche;
 
-  VpDay(dynamic mobdaten) {
+  VpDay(dynamic mobdaten, [DateTime? datumP]) {
     // Handle different input types: XmlDocument, bytes (List<int>), or String
     if (mobdaten is XmlDocument) {
       _mobdaten = mobdaten;
@@ -48,6 +50,7 @@ class VpDay {
     } else if (mobdaten is String) {
       _mobdaten = XmlDocument.parse(mobdaten);
     } else {
+      print(mobdaten.runtimeType);
       throw ArgumentError('mobdaten must be XmlDocument, List<int>, or String');
     }
 
@@ -63,7 +66,12 @@ class VpDay {
         .findElements('datei').first.innerText;
 
     // Parse datum from datei string (characters 8-16)
-    datum = _parseDate(datei.substring(8, 16), '%Y%m%d');
+    try {
+      datum = _parseDate(datei.substring(8, 16), '%Y%m%d');
+    } catch(e){
+      regulaerPlan=true;
+      datum = datumP!;
+    }
 
     // Get weekday (0 = Monday in Dart, 1 = Monday in Python)
     // Dart's DateTime.weekday: 1 = Monday, 7 = Sunday
@@ -319,23 +327,29 @@ class Klasse {
   List<Stunde> stunden() {
     List<Stunde> fin = [];
     final plElements = _data.findElements('Pl');
-    
     if (plElements.isEmpty) {
       throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');
     }
 
     final pl = plElements.first;
     for (var std in pl.findElements('Std')) {
-      final stElements = std.findElements('St');
+      late dynamic stElements;
+      if(std.findElements('St').isEmpty){
+        stElements = std.findElements('PlSt');
+      }else{
+        stElements = std.findElements('St');
+      }      
+      
       if (stElements.isNotEmpty) {
         fin.add(Stunde(xmldata: std));
       }
     }
 
     if (fin.isNotEmpty) {
+      
       return fin;
     } else {
-      throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');
+      throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');//Todo: Fix load error ??
     }
   }
 
@@ -427,12 +441,16 @@ class Stunde {
       throw ArgumentError('xmldata must be XmlElement, List<int>, or String');
     }
 
-    nr = int.parse(_data.findElements('St').first.innerText);
 
+    nr = int.parse(_data.findElements('St').first.innerText);
+     //im vertretung Stundenplan sind die Uhrzeiten nicht vohanden 
+/*
     beginn = _data.findElements('Beginn').first.innerText;
+     print("_da3ta");
 
     ende = _data.findElements('Ende').first.innerText;
-
+    print("_da3ta");
+*/
     final faElement = _data.findElements('Fa').first;
     final raElement = _data.findElements('Ra').first;
     final leElement = _data.findElements('Le').first;

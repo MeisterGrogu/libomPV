@@ -35,7 +35,7 @@ class _TimetablePageState extends State<TimetablePage> {
   int schulnummer = 40036218;
   String benutzername = "schueler";
   String passwort = "S2m9374";
-  String klasseKuerzel = "12G";
+  String klasseKuerzel = "11GA";
 /*
   int schulnummer = 40102573;
   String benutzername = "schueler";
@@ -49,7 +49,7 @@ class _TimetablePageState extends State<TimetablePage> {
   final TextEditingController _schulnummerController = TextEditingController();
   final TextEditingController _benutzernameController = TextEditingController();
   final TextEditingController _passwortController = TextEditingController();
-  final TextEditingController PlanController = TextEditingController();
+  final TextEditingController _planController = TextEditingController();
 
   @override
   void initState() {
@@ -62,7 +62,6 @@ class _TimetablePageState extends State<TimetablePage> {
   }
 
   void settingsMenu(){
-    print("object");
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -107,7 +106,6 @@ class _TimetablePageState extends State<TimetablePage> {
   }
 
   void planMenu(){
-    print("pkan");
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -139,6 +137,7 @@ class _TimetablePageState extends State<TimetablePage> {
       final date = monday.add(Duration(days: i));
       days.add(await _vp.fetch(datum: date));
     }
+    //print(days._dataroot);
     return days;
   }
 
@@ -181,11 +180,13 @@ class _TimetablePageState extends State<TimetablePage> {
             ),
             itemBuilder: (context, index) {
               final vpday = week[index];
-              final dateFormatted =
-              DateFormat('EEEE\ndd.MM.yyyy').format(vpday.datum);
+
+              final dateFormatted = DateFormat('EEEE\ndd.MM.yyyy').format(vpday.datum);
+
 
               try {
                 final kl = vpday.klasse(klasseKuerzel);
+
                 final stunden = kl.stunden();
 
                 return Card(
