@@ -15,7 +15,7 @@ final Map<String, String> teacherLookupTable = {
     "Rth": "Frau Roth",
     "Bck": "Herr Brauckmann",
     "Wit": "Frau Wittner",
-    "Sch": "Keine Ahnung",
+    "Sch": "Herr Schoel",
     "Lmz": "Frau Lemanzcik",
     "Dpp": "Frau Deppermann",
     "Hnz": "Frau Henze",
