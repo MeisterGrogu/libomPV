@@ -16,8 +16,8 @@ class Vertretungsplan {
     required this.benutzername,
     required this.passwort,
     String serverurl = "stundenplan24.de",
-    String verzeichnis = "{schulnummer}/wplan/wdatenk",
-    String dateinamenschema = "WPlanKl_%Y%m%d.xml",
+    String verzeichnis = "{schulnummer}/mobil/mobdaten",
+    String dateinamenschema = "PlanKl%Y%m%d.xml",
   })  : _dateinamenschema = dateinamenschema,
         _webpath = _buildWebpath(
           benutzername: benutzername,
