@@ -1,12 +1,8 @@
-// Required dependencies in pubspec.yaml:
-// dependencies:
-//   xml: ^6.6.1
-
 import 'package:xml/xml.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
-// exceptions.dart - Custom exception classes
 class Exceptions {
   static XMLNotFoundException XMLNotFound(String message) {
     return XMLNotFoundException(message);
@@ -22,12 +18,10 @@ class XMLNotFoundException implements Exception {
   String toString() => 'XMLNotFoundException: $message';
 }
 
-// lib.dart - Pretty XML utility function
 String prettyxml(XmlDocument document) {
   return document.toXmlString(pretty: true, indent: '  ');
 }
 
-// Main VpDay class
 class VpDay {
   late XmlDocument _mobdaten;
   late XmlElement _dataroot;
@@ -44,7 +38,6 @@ class VpDay {
     if (mobdaten is XmlDocument) {
       _mobdaten = mobdaten;
     } else if (mobdaten is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(mobdaten);
       _mobdaten = XmlDocument.parse(xmlString);
     } else if (mobdaten is String) {
@@ -57,28 +50,33 @@ class VpDay {
     _dataroot = _mobdaten.rootElement;
 
     // Parse zeitstempel
-    final zeitstempelText = _mobdaten.findAllElements('Kopf').first
-        .findElements('zeitstempel').first.innerText;
+    final kopfElements = _mobdaten.findAllElements('Kopf').toList();
+    if (kopfElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Kopf-Element nicht gefunden');
+    }
+    final zeitstempelElements = kopfElements.first.findElements('zeitstempel').toList();
+    if (zeitstempelElements.isEmpty) {
+      throw Exceptions.XMLNotFound('zeitstempel-Element nicht gefunden');
+    }
+    final zeitstempelText = zeitstempelElements.first.innerText;
     zeitstempel = _parseDateTime(zeitstempelText, '%d.%m.%Y, %H:%M');
 
-    // Get datei
-    datei = _mobdaten.findAllElements('Kopf').first
-        .findElements('datei').first.innerText;
+    // Parse datei
+    final dateiElements = kopfElements.first.findElements('datei').toList();
+    if (dateiElements.isEmpty) {
+      throw Exceptions.XMLNotFound('datei-Element nicht gefunden');
+    }
+    datei = dateiElements.first.innerText;
 
-    // Parse datum from datei string (characters 8-16)
-    try {
-      datum = _parseDate(datei.substring(8, 16), '%Y%m%d');
+    try{
+    datum = _parseDate(datei.substring(6, 14), '%Y%m%d');
     } catch(e){
       regulaerPlan=true;
       datum = datumP!;
     }
 
-    // Get weekday (0 = Monday in Dart, 1 = Monday in Python)
-    // Dart's DateTime.weekday: 1 = Monday, 7 = Sunday
-    // Python's weekday(): 0 = Monday, 6 = Sunday
     wochentag = datum.weekday - 1;
 
-    // Build zusatzInfo from ZiZeile elements
     List<String> ziZeilen = [];
     for (var zusatzInfo in _dataroot.findAllElements('ZusatzInfo')) {
       for (var ziZeile in zusatzInfo.findElements('ZiZeile')) {
@@ -91,27 +89,21 @@ class VpDay {
     zusatzInfo = ziZeilen.join('\n');
   }
 
-  // Helper method to parse datetime string with format
   DateTime _parseDateTime(String dateStr, String format) {
-    // Convert Python strptime format to Dart parsing
-    // Python: "%d.%m.%Y, %H:%M" -> "31.12.2023, 14:30"
     final parts = dateStr.split(', ');
     final dateParts = parts[0].split('.');
     final timeParts = parts[1].split(':');
     
     return DateTime(
-      int.parse(dateParts[2]), // year
-      int.parse(dateParts[1]), // month
-      int.parse(dateParts[0]), // day
-      int.parse(timeParts[0]), // hour
-      int.parse(timeParts[1]), // minute
+      int.parse(dateParts[2]),
+      int.parse(dateParts[1]),
+      int.parse(dateParts[0]),
+      int.parse(timeParts[0]),
+      int.parse(timeParts[1]),
     );
   }
 
-  // Helper method to parse date string with format
   DateTime _parseDate(String dateStr, String format) {
-    // Convert Python strptime format to Dart parsing
-    // Python: "%Y%m%d" -> "20231231"
     final year = int.parse(dateStr.substring(0, 4));
     final month = int.parse(dateStr.substring(4, 6));
     final day = int.parse(dateStr.substring(6, 8));
@@ -162,7 +154,6 @@ class VpDay {
     for (var ft in freieTageElement.first.findElements('ft')) {
       final text = ft.innerText;
       if (text.isNotEmpty) {
-        // Parse format "%y%m%d" -> "231231"
         final year = 2000 + int.parse(text.substring(0, 2));
         final month = int.parse(text.substring(2, 4));
         final day = int.parse(text.substring(4, 6));
@@ -189,7 +180,6 @@ class VpDay {
         continue;
       }
 
-      // Wir sammeln fuer alle Kurse dieser Klasse die Nummer und das Lehrerkuerzel
       for (var ue in unterrichtElement.first.findElements('Ue')) {
         final ueNrElement = ue.findElements('UeNr');
         if (ueNrElement.isNotEmpty) {
@@ -206,14 +196,11 @@ class VpDay {
         continue;
       }
 
-      // Jetzt gehen wir durch alle Stunden und schauen, ob sie geändert sind
       for (var std in alleStd) {
-        // Wenn nicht fuegen wir die Lehrer, welche die Stunde halten zu den nicht kranken Lehrern hinzu
         if (!std.anders && !std.ausfall && !std.besonders) {
           for (var sr in std.lehrer.split(' ')) {
             if (sr.isNotEmpty) {
               leNichtKrank.add(sr);
-              // Wenn der Lehrer fälschlicherweise als krank eingeordnet wurde, löschen wir ihn aus der kranken Liste
               if (leKrank.contains(sr)) {
                 leKrank.remove(sr);
               }
@@ -223,7 +210,6 @@ class VpDay {
           for (var sr in std.lehrer.split(' ')) {
             if (sr.isNotEmpty) {
               leNichtKrank.add(sr);
-              // Wenn der Lehrer fälschlicherweise als krank eingeordnet wurde, löschen wir ihn aus der kranken Liste
               if (leKrank.contains(sr)) {
                 leKrank.remove(sr);
               }
@@ -234,15 +220,12 @@ class VpDay {
             final le = lehrerInfo.firstWhere(
               (item) => item['nr'] == std.kursnummer.toString()
             );
-            // Wenn die Stunde geändert ist schauen wir, ob der lehrer schon in der nicht kranken Liste ist.
             if (!leNichtKrank.contains(le['kurz'])) {
-              // Wenn nicht, muss er krank sein
               if (!leKrank.contains(le['kurz'])) {
                 leKrank.add(le['kurz']!);
               }
             }
           } catch (e) {
-            // No matching item found, continue
             continue;
           }
         } else if (std.besonders) {
@@ -260,7 +243,6 @@ class VpDay {
       }
     }
 
-    // Sorry fuer den mess, aber es funktioniert und fast alles ist leider auch nötig
     leKrank.sort();
     return leKrank;
   }
@@ -271,7 +253,6 @@ class VpDay {
     final zielpfad = File(pfad).absolute.path;
     final directory = File(zielpfad).parent.path;
 
-    // Stellt sicher, dass das Verzeichnis existiert
     if (!Directory(directory).existsSync()) {
       Directory(directory).createSync(recursive: true);
     }
@@ -290,8 +271,11 @@ class Klasse {
 
   Klasse({required XmlElement xmldata}) {
     _data = xmldata;
-    // Kuerzel der Klasse
-    kuerzel = _data.findElements('Kurz').first.innerText;
+    final kurzElements = _data.findElements('Kurz').toList();
+    if (kurzElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Kurz-Element in Klasse nicht gefunden');
+    }
+    kuerzel = kurzElements.first.innerText;
   }
 
   @override
@@ -301,7 +285,7 @@ class Klasse {
 
   List<Stunde> stundenInPeriode(int periode) {
     List<Stunde> fin = [];
-    final plElements = _data.findElements('Pl');
+    final plElements = _data.findElements('Pl').toList();
     
     if (plElements.isEmpty) {
       throw Exceptions.XMLNotFound(
@@ -310,7 +294,7 @@ class Klasse {
 
     final pl = plElements.first;
     for (var std in pl.findElements('Std')) {
-      final stElements = std.findElements('St');
+      final stElements = std.findElements('St').toList();
       if (stElements.isNotEmpty && stElements.first.innerText == periode.toString()) {
         fin.add(Stunde(xmldata: std));
       }
@@ -326,7 +310,8 @@ class Klasse {
 
   List<Stunde> stunden() {
     List<Stunde> fin = [];
-    final plElements = _data.findElements('Pl');
+    final plElements = _data.findElements('Pl').toList();
+    
     if (plElements.isEmpty) {
       throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');
     }
@@ -416,8 +401,8 @@ class Klasse {
 class Stunde {
   late XmlElement _data;
   late int nr;
-  late String beginn;
-  late String ende;
+  late TimeOfDay beginn;
+  late TimeOfDay ende;
   late bool anders;
   late bool ausfall;
   late bool besonders;
@@ -428,11 +413,9 @@ class Stunde {
   late String info;
 
   Stunde({required dynamic xmldata}) {
-    // Handle different input types: XmlElement, bytes (List<int>), or String
     if (xmldata is XmlElement) {
       _data = xmldata;
     } else if (xmldata is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(xmldata);
       _data = XmlDocument.parse(xmlString).rootElement;
     } else if (xmldata is String) {
@@ -442,18 +425,50 @@ class Stunde {
     }
 
 
-    nr = int.parse(_data.findElements('St').first.innerText);
-     //im vertretung Stundenplan sind die Uhrzeiten nicht vohanden 
-/*
-    beginn = _data.findElements('Beginn').first.innerText;
-     print("_da3ta");
+    final stAlternativElements = _data.findElements('StAlternativ').toList();
+    final nrElements = _data.findElements('St').toList();
+    
+    if (stAlternativElements.isNotEmpty && stAlternativElements.first.innerText.isNotEmpty) {
+      nr = int.parse(stAlternativElements.first.innerText);
+    } else if (nrElements.isNotEmpty) {
+      nr = int.parse(nrElements.first.innerText);
+    } else {
+      throw Exceptions.XMLNotFound('Stunde Nr nicht gefunden');
+    }
 
-    ende = _data.findElements('Ende').first.innerText;
-    print("_da3ta");
-*/
-    final faElement = _data.findElements('Fa').first;
-    final raElement = _data.findElements('Ra').first;
-    final leElement = _data.findElements('Le').first;
+    final beginnElements = _data.findElements('Beginn').toList();
+    if (beginnElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Beginn-Element nicht gefunden');
+    }
+    String beginn_str = beginnElements.first.innerText;
+
+    final endeElements = _data.findElements('Ende').toList();
+    if (endeElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Ende-Element nicht gefunden');
+    }
+    String ende_str = endeElements.first.innerText;
+
+    beginn = TimeOfDay(
+      hour: int.parse(beginn_str.split(':')[0]),
+      minute: int.parse(beginn_str.split(':')[1]),
+    );
+
+    ende = TimeOfDay(
+      hour: int.parse(ende_str.split(':')[0]),
+      minute: int.parse(ende_str.split(':')[1]),
+    );
+
+    final faElements = _data.findElements('Fa').toList();
+    final raElements = _data.findElements('Ra').toList();
+    final leElements = _data.findElements('Le').toList();
+    
+    if (faElements.isEmpty || raElements.isEmpty || leElements.isEmpty) {
+      throw Exceptions.XMLNotFound('Fa, Ra oder Le Element nicht gefunden');
+    }
+    
+    final faElement = faElements.first;
+    final raElement = raElements.first;
+    final leElement = leElements.first;
 
     if (faElement.getAttribute('FaAe') != null ||
         raElement.getAttribute('RaAe') != null ||
@@ -471,9 +486,9 @@ class Stunde {
 
     besonders = false;
     try {
-      final nrElements = _data.findElements('Nr');
-      if (nrElements.isNotEmpty) {
-        kursnummer = int.parse(nrElements.first.innerText);
+      final nrEl = _data.findElements('Nr').toList();
+      if (nrEl.isNotEmpty) {
+        kursnummer = int.parse(nrEl.first.innerText);
       } else {
         besonders = true;
         kursnummer = -1;
@@ -484,33 +499,33 @@ class Stunde {
     }
 
     String fachTemp;
-    final faElements = _data.findElements('Fa');
-    if (faElements.isNotEmpty && faElements.first.innerText.isNotEmpty) {
-      fachTemp = faElements.first.innerText;
+    final faEl = _data.findElements('Fa').toList();
+    if (faEl.isNotEmpty && faEl.first.innerText.isNotEmpty) {
+      fachTemp = faEl.first.innerText;
     } else {
       fachTemp = '';
     }
     fach = (!ausfall && !besonders) ? fachTemp : '';
 
     String tmpLe;
-    final leElements = _data.findElements('Le');
-    if (leElements.isNotEmpty && leElements.first.innerText.isNotEmpty) {
-      tmpLe = leElements.first.innerText;
+    final leEl = _data.findElements('Le').toList();
+    if (leEl.isNotEmpty && leEl.first.innerText.isNotEmpty) {
+      tmpLe = leEl.first.innerText;
     } else {
       tmpLe = '';
     }
     lehrer = !ausfall ? tmpLe : '';
 
     String tmpRa;
-    final raElements = _data.findElements('Ra');
-    if (raElements.isNotEmpty && raElements.first.innerText.isNotEmpty) {
-      tmpRa = raElements.first.innerText;
+    final raEl = _data.findElements('Ra').toList();
+    if (raEl.isNotEmpty && raEl.first.innerText.isNotEmpty) {
+      tmpRa = raEl.first.innerText;
     } else {
       tmpRa = '';
     }
     raum = !ausfall ? tmpRa : '';
 
-    final ifElements = _data.findElements('If');
+    final ifElements = _data.findElements('If').toList();
     info = ifElements.isNotEmpty ? ifElements.first.innerText : '';
   }
 
@@ -519,10 +534,6 @@ class Stunde {
     return 'Stundenobjekt der $nr. Stunde bei $lehrer';
   }
 }
-
-// ╭──────────────────────────────────────────────────────────────────────────────────────────╮
-// │                                         Kurs                                             │
-// ╰──────────────────────────────────────────────────────────────────────────────────────────╯
 
 class Kurs {
   late XmlElement _data;
@@ -534,11 +545,9 @@ class Kurs {
   Kurs(dynamic xmldata) {
     XmlElement tempData;
     
-    // Handle different input types: XmlElement, bytes (List<int>), or String
     if (xmldata is XmlElement) {
       tempData = xmldata;
     } else if (xmldata is List<int>) {
-      // Convert bytes to string and parse
       final xmlString = String.fromCharCodes(xmldata);
       tempData = XmlDocument.parse(xmlString).rootElement;
     } else if (xmldata is String) {
@@ -547,7 +556,6 @@ class Kurs {
       throw ArgumentError('xmldata must be XmlElement, List<int>, or String');
     }
 
-    // Ich nehme direkt das UeNr-Element, da das Ue Element nichts brauchbares enthält
     final ueNrElements = tempData.findElements('UeNr');
     if (ueNrElements.isNotEmpty) {
       _data = ueNrElements.first;
