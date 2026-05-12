@@ -30,8 +30,11 @@ class VpDay {
   late DateTime datum;
   late int wochentag;
   late String zusatzInfo;
+  late bool regulaerPlan = false;
+  late String woche;
 
-  VpDay(dynamic mobdaten) {
+  VpDay(dynamic mobdaten, [DateTime? datumP]) {
+    // Handle different input types: XmlDocument, bytes (List<int>), or String
     if (mobdaten is XmlDocument) {
       _mobdaten = mobdaten;
     } else if (mobdaten is List<int>) {
@@ -40,6 +43,7 @@ class VpDay {
     } else if (mobdaten is String) {
       _mobdaten = XmlDocument.parse(mobdaten);
     } else {
+      print(mobdaten.runtimeType);
       throw ArgumentError('mobdaten must be XmlDocument, List<int>, or String');
     }
 
@@ -64,7 +68,12 @@ class VpDay {
     }
     datei = dateiElements.first.innerText;
 
+    try{
     datum = _parseDate(datei.substring(6, 14), '%Y%m%d');
+    } catch(e){
+      regulaerPlan=true;
+      datum = datumP!;
+    }
 
     wochentag = datum.weekday - 1;
 
@@ -309,16 +318,23 @@ class Klasse {
 
     final pl = plElements.first;
     for (var std in pl.findElements('Std')) {
-      final stElements = std.findElements('St').toList();
+      late dynamic stElements;
+      if(std.findElements('St').isEmpty){
+        stElements = std.findElements('PlSt');
+      }else{
+        stElements = std.findElements('St');
+      }      
+      
       if (stElements.isNotEmpty) {
         fin.add(Stunde(xmldata: std));
       }
     }
 
     if (fin.isNotEmpty) {
+      
       return fin;
     } else {
-      throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');
+      throw Exceptions.XMLNotFound('Keine Stunden fuer diese Klasse gefunden!');//Todo: Fix load error ??
     }
   }
 
@@ -407,6 +423,7 @@ class Stunde {
     } else {
       throw ArgumentError('xmldata must be XmlElement, List<int>, or String');
     }
+
 
     final stAlternativElements = _data.findElements('StAlternativ').toList();
     final nrElements = _data.findElements('St').toList();

@@ -1,6 +1,5 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'exceptions.dart';
 import 'parser.dart';
 
@@ -105,7 +104,7 @@ class Vertretungsplan {
     final httpStatusCode = response.statusCode;
     if (httpStatusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      final day = VpDay(decodedBody);
+      final day = VpDay(decodedBody,datumDate);
       _cache[file] = day;
       return day;
     } else if (httpStatusCode == 401) {
@@ -114,10 +113,40 @@ class Vertretungsplan {
         statusCode: httpStatusCode,
       );
     } else if (httpStatusCode == 404) {
+      //return regular plan 
+    String file;
+    datei = "SPlanKl_Sw1.xml";
+      
+      file = datei.replaceAll("{schulnummer}", schulnummer.toString());
+    
+
+    // Use HTTPS to avoid redirects that may drop Authorization headers.
+    final uri = Uri.parse("https://$_webpath/$file");
+
+    //print(uri);
+
+    // Send credentials using HTTP Basic Authorization header.
+    // Some HTTP clients/servers do not accept credentials embedded in the URL,
+    // so explicitly add the Authorization header here.
+    final String _basicAuth = base64Encode(utf8.encode('$benutzername:$passwort'));
+    final response = await http.get(
+      uri,
+      headers: {'Authorization': 'Basic $_basicAuth'},
+    );
+
+    //print("ddd  ");
+
+
+
+
+
+      return VpDay(response.bodyBytes,datumDate);
+      /*
       throw FetchingError(
         "Datei $datei konnte nicht abgerufen werden. Entweder existiert sie nicht, oder die Schulnummer $schulnummer ist nicht registriert.",
         statusCode: httpStatusCode,
-      );
+      );*/
+      //return VpDay("Empty");
     } else {
       throw FetchingError(
         "HTTP Error: ${response.statusCode} - ${response.reasonPhrase}",
