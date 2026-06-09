@@ -268,6 +268,7 @@ class VpDay {
 class Klasse {
   late XmlElement _data;
   late String kuerzel;
+  late int maximumStunde;
 
   Klasse({required XmlElement xmldata}) {
     _data = xmldata;
@@ -321,12 +322,16 @@ class Klasse {
       late dynamic stElements;
       if(std.findElements('St').isEmpty){
         stElements = std.findElements('PlSt');
-      }else{
+      } else {
         stElements = std.findElements('St');
-      }      
+      }
       
       if (stElements.isNotEmpty) {
-        fin.add(Stunde(xmldata: std));
+        Stunde stunde = Stunde(xmldata: std);
+        if (stunde.nr > maximumStunde) {
+          maximumStunde = stunde.nr;
+        }
+        fin.add(stunde);
       }
     }
 
